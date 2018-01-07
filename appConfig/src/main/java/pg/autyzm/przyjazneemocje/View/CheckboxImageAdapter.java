@@ -1,4 +1,4 @@
-package pg.autyzm.przyjazneemocje.chooseImages;
+package pg.autyzm.przyjazneemocje.View;
 
 import android.app.Activity;
 import android.content.Context;
@@ -12,28 +12,26 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.ImageView;
-import android.widget.TextView;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.List;
-
 
 import pg.autyzm.przyjazneemocje.R;
 
+
 /**
- * Created by Joanna on 2016-10-11.
+ * Created by joagi on 05.12.2017.
  */
 
-public class RowAdapter extends ArrayAdapter<RowBean> {
+public class CheckboxImageAdapter extends ArrayAdapter<GridCheckboxImageBean> {
 
     int layoutResourceId;
-    RowBean data[] = null;
+    GridCheckboxImageBean data[] = null;
 
-    private List<RowBean> rowBeanList;
+    private List<GridCheckboxImageBean> rowBeanList;
     private Context context;
 
-    public RowAdapter(Context context, int layoutResourceId, RowBean[] data) {
+    public CheckboxImageAdapter(Context context, int layoutResourceId, GridCheckboxImageBean[] data) {
         super(context, layoutResourceId, data);
         this.layoutResourceId = layoutResourceId;
         this.context = context;
@@ -53,19 +51,23 @@ public class RowAdapter extends ArrayAdapter<RowBean> {
             holder.imgIcon = (ImageView) row.findViewById(R.id.imgIcon);
             holder.checkBox = (CheckBox) row.findViewById(R.id.checkBoxImagesToChoose);
 
-            holder.checkBox.setOnCheckedChangeListener((ChooseImages) context);
-
             row.setTag(holder);
         } else {
             holder = (RowBeanHolder) row.getTag();
         }
 
 
-        RowBean object = data[position];
+        GridCheckboxImageBean object = data[position];
         holder.checkBox.setChecked(object.selected);
         try {
             String root = Environment.getExternalStorageDirectory().getAbsolutePath() + "/";
-            File fileOut = new File(root + "FriendlyEmotions/Photos" + File.separator + object.photoName);
+
+            File fileOut;
+            //if(object.photoName.contains("prize"))
+            //    fileOut = new File(root + "FriendlyEmotions/Prize" + File.separator + object.photoName);
+            //else
+                fileOut = new File(root + "FriendlyEmotions/Photos" + File.separator + object.photoName);
+
             Bitmap captureBmp = MediaStore.Images.Media.getBitmap(object.cr, Uri.fromFile(fileOut));
             holder.imgIcon.setImageBitmap(captureBmp);
         } catch (Exception e) {

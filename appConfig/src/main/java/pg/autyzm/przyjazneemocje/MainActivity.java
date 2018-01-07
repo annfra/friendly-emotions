@@ -12,9 +12,12 @@ import android.widget.ListView;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 
+import pg.autyzm.przyjazneemocje.View.LevelConfiguration;
 import pg.autyzm.przyjazneemocje.lib.SqlliteManager;
 
 import static android.provider.AlarmClock.EXTRA_MESSAGE;
@@ -25,12 +28,18 @@ public class MainActivity extends AppCompatActivity {
     public SqlliteManager sqlm;
     ArrayList<String> list;
     ArrayList<Boolean> active_list;
+    String root = Environment.getExternalStorageDirectory().getAbsolutePath() + "/";
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        File createMainDir = new File(root + "FriendlyEmotions" + File.separator);
+
+        if (!createMainDir.exists())
+            createMainDir.mkdir();
 
         sqlm = getInstance(this);
 
@@ -39,40 +48,49 @@ public class MainActivity extends AppCompatActivity {
 
         sqlm.cleanTable("photos"); //TODO not clean and add, but only update
 
-        String root = Environment.getExternalStorageDirectory().getAbsolutePath() + "/";
-
-        File createDir = new File(root + "Emotions" + File.separator);
+        File createDir = new File(root + "FriendlyEmotions/Photos" + File.separator);
         if (!createDir.exists()) {
             createDir.mkdir();
+
+            File createPrizesDir = new File(root + "FriendlyEmotions/Prizes" + File.separator);
+            if (!createPrizesDir.exists())
+                createPrizesDir.mkdir();
 
             Field[] drawables = pg.autyzm.przyjazneemocje.R.drawable.class.getFields();
             for (Field f : drawables) {
                 try {
                     if (IfConstainsEmotionName(f.getName()))
                     {
-                        String emotName = f.getName();
-                        int resID = getResources().getIdentifier(emotName, "drawable", getPackageName());
-
-                        Bitmap bm = BitmapFactory.decodeResource(getResources(), resID);
-
-                        String path = root + "Emotions" + File.separator;
-
-                        File file = new File(path, emotName + ".jpg");
-                        FileOutputStream outStream = new FileOutputStream(file);
-                        bm.compress(Bitmap.CompressFormat.JPEG, 100, outStream);
-                        outStream.flush();
-                        outStream.close();
+                        ExtractFromDrawable(f, "Photos", ".jpg", Bitmap.CompressFormat.JPEG);
                     }
-                }catch (Exception e) {
+                    else if (f.getName().contains("prize")) {
+
+                        ExtractFromDrawable(f, "Photos", ".png", Bitmap.CompressFormat.PNG);
+                        //ExtractFromDrawable(f, "Prizes", ".png", Bitmap.CompressFormat.PNG);
+                    }
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-
         }
 
-        if(new File(root + "/Emotions").list() != null) {
+        File createDirV = new File(root + "FriendlyEmotions/Videos" + File.separator);
+        if (!createDirV.exists()) {
+            createDirV.mkdir();
 
-            for (String emotName : new File(root + "/Emotions").list()) {
+            Field[] raw = pg.autyzm.przyjazneemocje.R.raw.class.getFields();
+            for (Field f : raw) {
+                try {
+                    ExtractFromDrawable(f, "Videos", ".mp4", null);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        if(new File(root + "FriendlyEmotions/Photos").list() != null) {
+
+            for (String emotName : new File(root + "FriendlyEmotions/Photos").list()) {
 
                 try {
                     int resID = getResources().getIdentifier(emotName, "drawable", getPackageName());
@@ -88,12 +106,50 @@ public class MainActivity extends AppCompatActivity {
                         sqlm.addPhoto(resID, "scared", emotName);
                     else if (emotName.contains("sad"))
                         sqlm.addPhoto(resID, "sad", emotName);
+                    else if (emotName.contains("prize"))
+                        sqlm.addPhoto(resID, "prize", emotName);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }
 
+        if(new File(root + "FriendlyEmotions/Videos").list() != null) {
+
+            for (String emotName : new File(root + "FriendlyEmotions/Videos").list()) {
+
+                try {
+                    int resID = getResources().getIdentifier(emotName, "raw", getPackageName());
+                    if (emotName.contains("happy"))
+                        sqlm.addVideo(resID, "happy", emotName);
+                    else if (emotName.contains("angry"))
+                        sqlm.addVideo(resID, "angry", emotName);
+                    else if (emotName.contains("surprised"))
+                        sqlm.addVideo(resID, "surprised", emotName);
+                    else if (emotName.contains("bored"))
+                        sqlm.addVideo(resID, "bored", emotName);
+                    else if (emotName.contains("scared"))
+                        sqlm.addVideo(resID, "scared", emotName);
+                    else if (emotName.contains("sad"))
+                        sqlm.addVideo(resID, "sad", emotName);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        /*if(new File(root + "FriendlyEmotions/Prizes").list() != null) {
+
+            for (String prizeName : new File(root + "FriendlyEmotions/Prizes").list()) {
+
+                try {
+                    int resID = getResources().getIdentifier(prizeName, "drawable", getPackageName());
+                    sqlm.addPhoto(resID, "prize", prizeName);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }*/
 
     }
 
@@ -134,24 +190,19 @@ public class MainActivity extends AppCompatActivity {
 
     public void updateLevelList(){
 
-
         Cursor cur = sqlm.giveAllLevels();
         list = new ArrayList<String>();
         active_list = new ArrayList<Boolean>();
 
         while(cur.moveToNext())
         {
-
             String name = cur.getString(cur.getColumnIndex("name"));
-
             String levelId = cur.getInt(0) + " " + name;
             //String levelId = "Level " + cur.getInt(0);
 
             int active = cur.getInt(cur.getColumnIndex("is_level_active"));
             boolean isLevelActive = (active != 0);
             active_list.add(isLevelActive);
-
-
             list.add(levelId);
 
         }
@@ -163,8 +214,36 @@ public class MainActivity extends AppCompatActivity {
         ListView lView = (ListView) findViewById(R.id.list);
         lView.setAdapter(adapter);
 
+    }
 
+    private void ExtractFromDrawable(Field field, String dir, String fileExt, Bitmap.CompressFormat format) throws IOException {
 
+        String emotName = field.getName();
+        int resID = getResources().getIdentifier(emotName, "drawable", getPackageName());
+        String path = root + "FriendlyEmotions/" + dir + File.separator;
+        File file = new File(path, emotName + fileExt);
+        FileOutputStream outStream = new FileOutputStream(file);
 
+        if(format != null)
+        {
+            Bitmap bm = BitmapFactory.decodeResource(getResources(), resID);
+            bm.compress(format, 100, outStream);
+            outStream.flush();
+            outStream.close();
+
+        } else {
+            resID = getResources().getIdentifier(emotName, "raw", getPackageName());
+            InputStream in = getResources().openRawResource(resID);
+            byte[] buff = new byte[1024];
+            int read = 0;
+            try {
+                while ((read = in.read(buff)) > 0) {
+                    outStream.write(buff, 0, read);
+                }
+            } finally {
+                in.close();
+                outStream.close();
+            }
+        }
     }
 }
